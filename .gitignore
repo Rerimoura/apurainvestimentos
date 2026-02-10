@@ -44,6 +44,7 @@ Thumbs.db
 *.xls
 !template*.xlsx
 !template*.xls
+!SIMULADOR_NIVEA_2026.xlsx
 
 # Logs
 *.log

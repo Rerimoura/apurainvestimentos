@@ -11,6 +11,7 @@ Data: 2026-02-09
 import streamlit as st
 import pandas as pd
 import io
+import os
 from io import BytesIO
 from datetime import datetime
 import openpyxl
@@ -470,7 +471,8 @@ def main():
     with col_help3:
         # Carregar o arquivo template para download
         try:
-            template_path = "SIMULADOR_NIVEA_2026.xlsx"
+            # Usar caminho absoluto baseado na localização do script
+            template_path = os.path.join(os.path.dirname(__file__), "SIMULADOR_NIVEA_2026.xlsx")
             with open(template_path, "rb") as file:
                 template_data = file.read()
             

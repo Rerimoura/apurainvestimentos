@@ -4,6 +4,7 @@ Aplicação web para apuração de investimentos em promoções de produtos.
 
 ## 🚀 Funcionalidades
 
+- 📋 Download de planilha modelo para Preço Final
 - Upload de planilha de Preço Final
 - Upload de múltiplas planilhas de Orçamento
 - Cálculo automático de investimentos e valores de pedido
@@ -15,20 +16,24 @@ Aplicação web para apuração de investimentos em promoções de produtos.
 
 ## 📋 Como Usar
 
-1. **Carregue a Planilha de Preço Final**
+1. **Baixe a Planilha Modelo (Opcional)**
+   - Clique no botão "📋 Download Planilha Modelo" no topo da página
+   - Use como referência para o formato esperado de Preço Final
+
+2. **Carregue a Planilha de Preço Final**
    - Arquivo Excel com colunas: EAN/COD BARRAS e Valor Negociado
 
-2. **Informe o Nome da Rede**
+3. **Informe o Nome da Rede**
    - Digite o nome da rede para identificação no relatório
 
-3. **Carregue as Planilhas de Orçamento**
+4. **Carregue as Planilhas de Orçamento**
    - Arquivos Excel com cabeçalhos na linha 8
    - Colunas obrigatórias: EAN, VALOR SKU PAGO, QUANTIDADE
 
-4. **Processar Dados**
+5. **Processar Dados**
    - Clique em "Processar Dados" para gerar a análise
 
-5. **Baixar Resultado**
+6. **Baixar Resultado**
    - Faça download do arquivo Excel com a apuração completa
 
 ## 🛠️ Tecnologias
