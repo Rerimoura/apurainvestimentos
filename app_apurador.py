@@ -448,8 +448,8 @@ def main():
     st.markdown('<div class="main-header">📊 Apurador de Investimentos</div>', unsafe_allow_html=True)
     st.markdown('<div class="sub-header">Calcule investimentos em promoções de forma rápida e eficiente</div>', unsafe_allow_html=True)
     
-    # Botões de ajuda
-    col_help1, col_help2, col_help3 = st.columns([1, 1, 2])
+    # Botões de ajuda e template
+    col_help1, col_help2, col_help3 = st.columns([1, 1, 1])
     
     with col_help1:
         st.link_button(
@@ -466,6 +466,24 @@ def main():
             help="Entre em contato em caso de dúvidas",
             use_container_width=True
         )
+    
+    with col_help3:
+        # Carregar o arquivo template para download
+        try:
+            template_path = "SIMULADOR_NIVEA_2026.xlsx"
+            with open(template_path, "rb") as file:
+                template_data = file.read()
+            
+            st.download_button(
+                "📋 Download Planilha Modelo",
+                data=template_data,
+                file_name="SIMULADOR_NIVEA_2026.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                help="Baixe a planilha modelo preço final",
+                use_container_width=True
+            )
+        except FileNotFoundError:
+            st.warning("⚠️ Planilha modelo não encontrada")
     
     st.markdown("---")
     
