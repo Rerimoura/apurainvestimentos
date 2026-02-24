@@ -165,9 +165,48 @@ def processar_dados(df_preco_final, orcamentos_dict):
     if coluna_valor_negociado is None:
         st.error("❌ Não foi encontrada coluna de valor negociado na planilha de Preço Final")
         st.info("💡 Colunas aceitas: 'VALOR NEGOCIADO REDE', 'VALOR NEGOCIADO', 'PRECO NEGOCIADO'")
-        return None
+        return None, None
     
-    # Processar cada orçamento
+    # Converter valor negociado para numérico antes das comparações
+    df_resultado[coluna_valor_negociado] = df_resultado[coluna_valor_negociado].apply(limpar_valor_monetario)
+    
+    # Coletar todos os EANs presentes nos orçamentos
+    eans_orcamentos = set()
+    for df_orc in orcamentos_dict.values():
+        eans_str = df_orc['EAN'].astype(str).str.strip()
+        eans_orcamentos.update(eans_str.tolist())
+    
+    # Filtrar apenas produtos do Preço Final que estão em algum orçamento
+    eans_resultado = df_resultado['EAN'].astype(str).str.strip()
+    df_no_orcamento = df_resultado[eans_resultado.isin(eans_orcamentos)]
+    
+    # Detectar produtos sem preço entre os que estão nos orçamentos
+    sem_preco = df_no_orcamento[
+        df_no_orcamento[coluna_valor_negociado].isna() | (df_no_orcamento[coluna_valor_negociado] == 0)
+    ]
+    
+    if not sem_preco.empty:
+        col_produto = next((c for c in df_resultado.columns if 'produto' in c.lower() or 'descri' in c.lower()), None)
+        col_ean = 'EAN' if 'EAN' in df_resultado.columns else None
+        
+        st.error(f"❌ **{len(sem_preco)} produto(s) presentes no orçamento estão sem preço negociado (zero ou vazio)**. Corrija antes de continuar.")
+        
+        with st.expander("📋 Ver lista de produtos sem preço", expanded=True):
+            colunas_exibir = []
+            if col_ean:
+                colunas_exibir.append(col_ean)
+            if col_produto:
+                colunas_exibir.append(col_produto)
+            colunas_exibir.append(coluna_valor_negociado)
+            
+            if colunas_exibir:
+                st.dataframe(sem_preco[colunas_exibir].reset_index(drop=True), use_container_width=True)
+            else:
+                st.dataframe(sem_preco.reset_index(drop=True), use_container_width=True)
+        
+        return None, None
+    
+
     for nome, df_orc in orcamentos_dict.items():
         # Converter EAN para string
         df_orc['EAN'] = df_orc['EAN'].astype(str).str.strip()
@@ -212,9 +251,6 @@ def processar_dados(df_preco_final, orcamentos_dict):
     
     # Debug: mostrar alguns EANs do Preço Final
     st.caption(f"🔍 Preço Final - Primeiros EANs: {df_resultado['EAN'].head(3).tolist()}")
-    
-    # Converter coluna de valor negociado para numérico (apenas uma vez, após todos os merges)
-    df_resultado[coluna_valor_negociado] = df_resultado[coluna_valor_negociado].apply(limpar_valor_monetario)
     
     # Calcular investimentos e valores para cada orçamento
     for nome in orcamentos_dict.keys():
@@ -641,12 +677,17 @@ def main():
     
     if processar_btn:
         with st.spinner("⏳ Processando dados..."):
-            df_resultado, estatisticas = processar_dados(
+            resultado = processar_dados(
                 st.session_state.df_preco_final,
                 st.session_state.orcamentos_dict
             )
             
-            if df_resultado is not None:
+            if resultado is None or resultado[0] is None:
+                pass  # erros já exibidos dentro da função
+            else:
+                df_resultado, estatisticas = resultado
+            
+            if resultado is not None and resultado[0] is not None:
                 st.session_state.df_resultado = df_resultado
                 
                 st.success("✅ Processamento concluído com sucesso!")
