@@ -1,12 +1,11 @@
-# 📊 Apurador de Investimentos
+# Apurador de Investimentos Reppox
 
-Aplicação web para apuração de investimentos em promoções de produtos.
+Aplicação web para apuração de investimentos para pedidos feitos no site Reppos.
 
-## 🚀 Funcionalidades
+## Funcionalidades
 
-- 📋 Download de planilha modelo para Preço Final
-- Upload de planilha de Preço Final
-- Upload de múltiplas planilhas de Orçamento
+- Download de planilha modelo para preencher o preço da rede
+- Upload de múltiplas planilhas de orçamento reppos
 - Cálculo automático de investimentos e valores de pedido
 - Geração de relatório Excel formatado com:
   - Resumo geral com totais
@@ -14,24 +13,23 @@ Aplicação web para apuração de investimentos em promoções de produtos.
   - Formatação de moeda (R$) e percentual (%)
   - Análise por orçamento
 
-## 📋 Como Usar
+## Como Usar
 
-1. **Baixe a Planilha Modelo (Opcional)**
-   - Clique no botão "📋 Download Planilha Modelo" no topo da página
-   - Use como referência para o formato esperado de Preço Final
+1. **Baixe a planilha modelo (opcional)**
+   - Clique no botão "📋 Download Planilha Modelo", de acordo com a indústria, no topo da página.
+   - Preencha a planilha com os preços do cliente.
 
-2. **Carregue a Planilha de Preço Final**
-   - Arquivo Excel com colunas: EAN/COD BARRAS e Valor Negociado
+2. **Carregue a planilha de preço final**
+   - Arquivo Excel com colunas: EAN/Cod barras e valor negociado
 
-3. **Informe o Nome da Rede**
+3. **Informe o nome da rede**
    - Digite o nome da rede para identificação no relatório
 
-4. **Carregue as Planilhas de Orçamento**
-   - Arquivos Excel com cabeçalhos na linha 8
-   - Colunas obrigatórias: EAN, VALOR SKU PAGO, QUANTIDADE
+4. **Carregue as planilhas de orçamento Reppos**
+   - Arquivos Excel obtido ao exportar o carrinho no site Reppos
 
 5. **Processar Dados**
-   - Clique em "Processar Dados" para gerar a análise
+   - Clique em "processar dados" para gerar a planilha final de investimentos
 
 6. **Baixar Resultado**
    - Faça download do arquivo Excel com a apuração completa
