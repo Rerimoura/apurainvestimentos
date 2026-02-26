@@ -4,8 +4,8 @@ Aplicação web para apuração de investimentos para pedidos feitos no site Rep
 
 ## Funcionalidades
 
-- Download de planilha modelo para preencher o preço da rede
-- Upload de múltiplas planilhas de orçamento reppos
+- Download de planilha modelo para preencher o preço do cliente
+- Upload de múltiplas planilhas de orçamento Reppos
 - Cálculo automático de investimentos e valores de pedido
 - Geração de relatório Excel formatado com:
   - Resumo geral com totais
