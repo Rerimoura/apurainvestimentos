@@ -486,7 +486,7 @@ def main():
     st.markdown('<div class="sub-header">Calcule investimentos em promoções de forma rápida e eficiente</div>', unsafe_allow_html=True)
     
     # Botões de ajuda e template
-    col_help1, col_help2, col_help3 = st.columns([1, 1, 1])
+    col_help1, col_help2, col_help3, col_help4 = st.columns([1, 1, 1, 1])
     
     with col_help1:
         st.link_button(
@@ -505,7 +505,7 @@ def main():
         )
     
     with col_help3:
-        # Carregar o arquivo template para download
+        # Carregar o arquivo template Nivea para download
         try:
             # Usar caminho absoluto baseado na localização do script
             template_path = os.path.join(os.path.dirname(__file__), "SIMULADOR_NIVEA_2026.xlsx")
@@ -513,15 +513,34 @@ def main():
                 template_data = file.read()
             
             st.download_button(
-                "📋 Download Planilha Modelo",
+                "📋 modelo padrão Nivea",
                 data=template_data,
                 file_name="SIMULADOR_NIVEA_2026.xlsx",
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                help="Baixe a planilha modelo preço final",
+                help="Baixe a planilha modelo padrão Nivea",
                 use_container_width=True
             )
         except FileNotFoundError:
-            st.warning("⚠️ Planilha modelo não encontrada")
+            st.warning("⚠️ Planilha modelo Nivea não encontrada")
+    
+    with col_help4:
+        # Carregar o arquivo template Reckitt para download
+        try:
+            template_path = os.path.join(os.path.dirname(__file__), "SIMULADOR_RECKITT 2026.xlsx")
+            with open(template_path, "rb") as file:
+                template_data = file.read()
+            
+            st.download_button(
+                "📋 modelo padrão Reckitt",
+                data=template_data,
+                file_name="SIMULADOR_RECKITT 2026.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                help="Baixe a planilha modelo padrão Reckitt",
+                use_container_width=True,
+                key="download_reckitt"
+            )
+        except FileNotFoundError:
+            st.warning("⚠️ Planilha modelo Reckitt não encontrada")
     
     st.markdown("---")
     
