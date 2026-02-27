@@ -526,14 +526,14 @@ def main():
     with col_help4:
         # Carregar o arquivo template Reckitt para download
         try:
-            template_path = os.path.join(os.path.dirname(__file__), "SIMULADOR_RECKITT 2026.xlsx")
+            template_path = os.path.join(os.path.dirname(__file__), "SIMULADOR_RECKITT_CORE_2026.xlsx")
             with open(template_path, "rb") as file:
                 template_data = file.read()
             
             st.download_button(
                 "📋 modelo padrão Reckitt",
                 data=template_data,
-                file_name="SIMULADOR_RECKITT_2026.xlsx",
+                file_name="SIMULADOR_RECKITT_CORE_2026.xlsx",
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                 help="Baixe a planilha modelo padrão Reckitt",
                 use_container_width=True,
