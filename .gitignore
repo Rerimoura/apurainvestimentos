@@ -45,6 +45,7 @@ Thumbs.db
 !template*.xlsx
 !template*.xls
 !SIMULADOR_NIVEA_2026.xlsx
+!SIMULADOR_RECKITT_CORE_2026.xlsx
 
 # Logs
 *.log
