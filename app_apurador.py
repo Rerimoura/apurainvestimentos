@@ -443,13 +443,13 @@ def converter_df_para_excel(df, nome_rede=""):
             cell.font = openpyxl.styles.Font(bold=True, color='FFFFFF')
         
         # Aplicar cor azul claro nos dados (A6:E179)
-        for row in range(6, 180):  # Linhas 6 até 179
+        for row in range(6, 222):  # Linhas 6 até 179
             for col in range(1, 6):  # Colunas A até E
                 cell = worksheet.cell(row=row, column=col)
                 cell.fill = cor_dados_azul
         
         # Aplicar cor verde claro na coluna F (F5:F179)
-        for row in range(5, 180):  # Linhas 5 até 179
+        for row in range(5, 222):  # Linhas 5 até 179
             cell = worksheet.cell(row=row, column=6)  # Coluna F
             cell.fill = cor_dados_verde
             if row == 5:  # Aplicar negrito e branco no cabeçalho
