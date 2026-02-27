@@ -533,7 +533,7 @@ def main():
             st.download_button(
                 "📋 modelo padrão Reckitt",
                 data=template_data,
-                file_name="SIMULADOR_RECKITT 2026.xlsx",
+                file_name="SIMULADOR_RECKITT_2026.xlsx",
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                 help="Baixe a planilha modelo padrão Reckitt",
                 use_container_width=True,
