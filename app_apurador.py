@@ -561,7 +561,7 @@ def main():
         - VALOR SKU PAGO
         - QUANTIDADE
         
-        ⚠️ **Importante**: Especifique em qual linha estão os cabeçalhos (padrão: linha 8)
+        ⚠️ **Importante**: Especifique em qual linha estão os cabeçalhos (padrão: linha 10)
         
         3️⃣ **Processar**  
         Clique no botão para calcular
@@ -642,7 +642,7 @@ def main():
     # Container para upload de Orçamentos
     st.subheader("2️⃣ Planilhas de Orçamento")
     
-    st.info("💡 As planilhas de orçamento devem ter os cabeçalhos na **linha 8** e conter as colunas: EAN, VALOR SKU PAGO, QUANTIDADE")
+    st.info("💡 As planilhas de orçamento devem ter os cabeçalhos na **linha 10** e conter as colunas: EAN, VALOR SKU PAGO, QUANTIDADE")
     
     arquivos_orcamento = st.file_uploader(
         "Selecione uma ou mais planilhas de orçamento",
@@ -656,8 +656,8 @@ def main():
         
         for arquivo in arquivos_orcamento:
             try:
-                # Ler Excel com cabeçalho na linha 8 (header=7 porque é 0-indexed)
-                df_temp = pd.read_excel(arquivo, header=7)
+                # Ler Excel com cabeçalho na linha 10 (header=9 porque é 0-indexed)
+                df_temp = pd.read_excel(arquivo, header=9)
                 
                 valido, mensagem = validar_colunas_orcamento(df_temp)
                 
