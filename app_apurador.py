@@ -436,7 +436,7 @@ def converter_df_para_excel(df, nome_rede=""):
         worksheet['C3'].fill = cor_resumo_amarelo
         
         # Aplicar cor no cabeçalho (A5:E5)
-        for col in range(1, 7):  # Colunas A até E (1 até 5)
+        for col in range(1, 6):  # Colunas A até E (1 até 5)
             cell = worksheet.cell(row=5, column=col)
             cell.fill = cor_cabecalho
             # Aplicar texto branco no cabeçalho para contraste
@@ -444,15 +444,15 @@ def converter_df_para_excel(df, nome_rede=""):
         
         # Aplicar cor azul claro nos dados (A6:E179)
         for row in range(6, 222):  # Linhas 6 até 179
-            for col in range(1, 6):  # Colunas A até E
+            for col in range(1, 7):  # Colunas A até E
                 cell = worksheet.cell(row=row, column=col)
                 cell.fill = cor_dados_azul
         
         # Aplicar cor verde claro na coluna F (F5:F179)
-        for row in range(6, 222):  # Linhas 5 até 179
-            cell = worksheet.cell(row=row, column=6)  # Coluna F
+        for row in range(5, 222):  # Linhas 5 até 179
+            cell = worksheet.cell(row=row, column=7)  # Coluna F
             cell.fill = cor_dados_verde
-            if row == 6:  # Aplicar negrito e branco no cabeçalho
+            if row == 5:  # Aplicar negrito e branco no cabeçalho
                 cell.font = openpyxl.styles.Font(bold=True, color='FFFFFF')
                 cell.fill = cor_cabecalho
         
@@ -470,7 +470,7 @@ def converter_df_para_excel(df, nome_rede=""):
             for row in range(6, 222):  # Linhas 5 até 179
                 cell = worksheet.cell(row=row, column=col_idx)
                 cell.fill = cor_orcamentos
-                if row == 6:  # Manter negrito e branco no cabeçalho
+                if row == 5:  # Manter negrito e branco no cabeçalho
                     cell.font = openpyxl.styles.Font(bold=True, color='FFFFFF')
                     cell.fill = cor_cabecalho
     
