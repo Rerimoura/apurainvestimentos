@@ -12,6 +12,7 @@ import streamlit as st
 import pandas as pd
 import io
 import os
+import re
 from io import BytesIO
 from datetime import datetime
 import openpyxl
@@ -95,6 +96,33 @@ def validar_colunas_orcamento(df):
         return False, f"Colunas faltando: {', '.join(colunas_faltando)}"
     
     return True, "Planilha válida"
+
+
+def extrair_cnpj_orcamento(arquivo):
+    """
+    Extrai o CNPJ do cliente do cabeçalho do orçamento (linha com o rótulo 'CNPJ').
+    Se não encontrar, tenta pelos 14 dígitos no início do nome do arquivo.
+    """
+    try:
+        arquivo.seek(0)
+        df_topo = pd.read_excel(arquivo, header=None, nrows=9, dtype=str)
+        for _, linha in df_topo.iterrows():
+            valores = [str(v).strip() for v in linha if pd.notna(v) and str(v).strip()]
+            for i, valor in enumerate(valores[:-1]):
+                if valor.upper().rstrip(':') == 'CNPJ':
+                    return valores[i + 1]
+    except Exception:
+        pass
+    finally:
+        arquivo.seek(0)
+
+    # Fallback: CNPJ no nome do arquivo (ex: 18510982002685-supermercado-...)
+    match = re.search(r'(?<!\d)\d{14}(?!\d)', arquivo.name)
+    if match:
+        d = match.group()
+        return f"{d[:2]}.{d[2:5]}.{d[5:8]}/{d[8:12]}-{d[12:]}"
+
+    return ""
 
 
 def limpar_valor_monetario(valor):
@@ -315,8 +343,11 @@ def processar_dados(df_preco_final, orcamentos_dict):
     return df_resultado, estatisticas
 
 
-def converter_df_para_excel(df, nome_rede=""):
-    """Converte DataFrame para Excel em memória com formatação e resumo"""
+def converter_df_para_excel(df, nome_rede="", cnpjs=None):
+    """Converte DataFrame para Excel em memória com formatação e resumo.
+
+    cnpjs: lista com o CNPJ de cada orçamento, na mesma ordem das lojas (loja 1, loja 2, ...)
+    """
     output = io.BytesIO()
     
     # Calcular totais para o resumo
@@ -473,7 +504,25 @@ def converter_df_para_excel(df, nome_rede=""):
                 if row == 5:  # Manter negrito e branco no cabeçalho
                     cell.font = openpyxl.styles.Font(bold=True, color='FFFFFF')
                     cell.fill = cor_cabecalho
-    
+
+        # Escrever o CNPJ de cada loja na linha 4, acima das colunas Preço/Qtd venda da loja
+        colunas_df = list(df.columns)
+        for idx, cnpj in enumerate(cnpjs or [], 1):
+            col_preco = f'Preço venda loja {idx}'
+            col_qtd = f'Qtd venda loja {idx}'
+            indices = [colunas_df.index(c) + 1 for c in (col_preco, col_qtd) if c in colunas_df]
+            if not indices:
+                continue
+
+            inicio, fim = min(indices), max(indices)
+            cell = worksheet.cell(row=4, column=inicio)
+            cell.value = f'CNPJ {cnpj}' if cnpj else 'CNPJ não identificado'
+            cell.font = openpyxl.styles.Font(bold=True)
+            cell.fill = cor_orcamentos
+            cell.alignment = openpyxl.styles.Alignment(horizontal='center')
+            if fim > inicio:
+                worksheet.merge_cells(start_row=4, start_column=inicio, end_row=4, end_column=fim)
+
     output.seek(0)
     return output.getvalue()
 
@@ -593,7 +642,11 @@ def main():
         st.session_state.orcamentos_dict = {}
     if 'df_resultado' not in st.session_state:
         st.session_state.df_resultado = None
-    
+    if 'cnpjs_dict' not in st.session_state:
+        st.session_state.cnpjs_dict = {}
+    if 'cnpjs_resultado' not in st.session_state:
+        st.session_state.cnpjs_resultado = []
+
     # Container para upload de Preço Final
     st.subheader("1️⃣ Planilha de Preço Final")
     
@@ -653,7 +706,8 @@ def main():
     
     if arquivos_orcamento:
         st.session_state.orcamentos_dict = {}
-        
+        st.session_state.cnpjs_dict = {}
+
         for arquivo in arquivos_orcamento:
             try:
                 # Ler Excel com cabeçalho na linha 10 (header=9 porque é 0-indexed)
@@ -664,10 +718,14 @@ def main():
                 if valido:
                     nome_orcamento = arquivo.name.replace('.xlsx', '').replace('.xls', '')
                     st.session_state.orcamentos_dict[nome_orcamento] = df_temp
-                    
+                    cnpj = extrair_cnpj_orcamento(arquivo)
+                    st.session_state.cnpjs_dict[nome_orcamento] = cnpj
+
                     col1, col2, col3 = st.columns([2, 1, 1])
                     with col1:
-                        st.success(f"✅ {arquivo.name}")
+                        st.success(f"✅ {arquivo.name}" + (f" — CNPJ {cnpj}" if cnpj else ""))
+                        if not cnpj:
+                            st.warning("⚠️ CNPJ não encontrado neste orçamento")
                     with col2:
                         st.metric("📦 Produtos", len(df_temp))
                     with col3:
@@ -708,6 +766,11 @@ def main():
             
             if resultado is not None and resultado[0] is not None:
                 st.session_state.df_resultado = df_resultado
+                # CNPJs na mesma ordem das lojas (loja 1, loja 2, ...)
+                st.session_state.cnpjs_resultado = [
+                    st.session_state.cnpjs_dict.get(nome, '')
+                    for nome in st.session_state.orcamentos_dict.keys()
+                ]
                 
                 st.success("✅ Processamento concluído com sucesso!")
                 
@@ -744,7 +807,8 @@ def main():
         nome_arquivo = f"Apuracao_Investimentos_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
         excel_data = converter_df_para_excel(
             st.session_state.df_resultado,
-            st.session_state.get('nome_rede', '')
+            st.session_state.get('nome_rede', ''),
+            st.session_state.cnpjs_resultado
         )
         
         col1, col2, col3 = st.columns([1, 2, 1])
@@ -760,7 +824,7 @@ def main():
         
         st.info("💡 O arquivo Excel contém todos os dados do Preço Final mais as colunas:\n" +
                 "• Preço venda loja 1, 2, etc.\n" +
-                "• Qtd venda loja 1, 2, etc.\n" +
+                "• Qtd venda loja 1, 2, etc. (com o CNPJ de cada loja acima das colunas)\n" +
                 "• Verba Total (investimento total)\n" +
                 "• TT.Pedido (valor total de pedidos)")
     
