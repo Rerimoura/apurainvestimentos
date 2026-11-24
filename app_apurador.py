@@ -303,18 +303,39 @@ def processar_dados(df_preco_final, orcamentos_dict):
     # Somar todas as colunas de valor de pedido (ignorando NaN)
     df_resultado['VALOR_PEDIDO_TOTAL_GERAL'] = df_resultado[colunas_valor_pedido].sum(axis=1, skipna=True)
     
+    # Calcular desconto unitário por loja (diferença entre SKU pago e valor negociado)
+    for nome in orcamentos_dict.keys():
+        df_resultado[f'{nome}_DESCONTO_UNITARIO'] = (
+            df_resultado[f'{nome}_VALOR_SKU_PAGO'] - df_resultado[coluna_valor_negociado]
+        )
+        df_resultado[f'{nome}_DESCONTO_TOTAL'] = (
+            df_resultado[f'{nome}_DESCONTO_UNITARIO'] * df_resultado[f'{nome}_QUANTIDADE']
+        )
+
     # Coletar estatísticas ANTES de renomear/remover colunas (para exibir no Streamlit)
     estatisticas = {}
     for nome in orcamentos_dict.keys():
         produtos_encontrados = df_resultado[f'{nome}_QUANTIDADE'].notna().sum()
         total_produtos = len(df_resultado)
+        inv_total_loja = df_resultado[f'{nome}_INVESTIMENTO_TOTAL'].sum(skipna=True)
+        pedido_total_loja = df_resultado[f'{nome}_VALOR_PEDIDO_TOTAL'].sum(skipna=True)
+        desconto_total_loja = df_resultado[f'{nome}_DESCONTO_TOTAL'].sum(skipna=True)
+        pct_inv_loja = (inv_total_loja / pedido_total_loja * 100) if pedido_total_loja > 0 else 0
         estatisticas[nome] = {
             'encontrados': produtos_encontrados,
-            'total': total_produtos
+            'total': total_produtos,
+            'investimento_total': inv_total_loja,
+            'pedido_total': pedido_total_loja,
+            'desconto_total': desconto_total_loja,
+            'percentual_investimento': round(pct_inv_loja, 2),
         }
     
-    # Remover colunas individuais de investimento e valor de pedido (manter só os totais)
-    colunas_para_remover = colunas_investimento + colunas_valor_pedido
+    # Remover colunas auxiliares que não vão para o Excel
+    colunas_para_remover = (
+        colunas_investimento + colunas_valor_pedido
+        + [f'{nome}_DESCONTO_UNITARIO' for nome in orcamentos_dict.keys()]
+        + [f'{nome}_DESCONTO_TOTAL' for nome in orcamentos_dict.keys()]
+    )
     df_resultado = df_resultado.drop(columns=colunas_para_remover)
     
     # Renomear colunas para nomes mais amigáveis
@@ -793,6 +814,66 @@ def main():
                             f"{stats['encontrados']}/{stats['total']}",
                             help=f"Produtos encontrados neste orçamento"
                         )
+                
+                # Resumo de Investimento por Loja
+                st.subheader("🏪 Investimento por Loja")
+                
+                resumo_lojas = []
+                for idx, (nome, stats) in enumerate(estatisticas.items(), 1):
+                    pct = stats['percentual_investimento']
+                    resumo_lojas.append({
+                        'Loja': f'Loja {idx}',
+                        'Nome Orçamento': nome,
+                        'Investimento Total': stats['investimento_total'],
+                        'Valor Pedido Total': stats['pedido_total'],
+                        '% Investimento': pct,
+                        'Descontos Totais': stats['desconto_total'],
+                    })
+                
+                df_resumo_lojas = pd.DataFrame(resumo_lojas)
+                
+                # Função de estilo para destacar % Investimento
+                def _highlight_pct(val):
+                    """Retorna estilo CSS conforme o percentual de investimento."""
+                    try:
+                        v = float(val)
+                    except (ValueError, TypeError):
+                        return ''
+                    if v > 40:
+                        return 'background-color: #ff4d4d; color: white; font-weight: bold'
+                    elif v > 30:
+                        return 'background-color: #ffd633; color: black; font-weight: bold'
+                    return ''
+                
+                # Aplicar formatação de exibição
+                styled_resumo = (
+                    df_resumo_lojas.style
+                    .format({
+                        'Investimento Total': 'R$ {:,.2f}',
+                        'Valor Pedido Total': 'R$ {:,.2f}',
+                        '% Investimento': '{:.2f}%',
+                        'Descontos Totais': 'R$ {:,.2f}',
+                    })
+                    .applymap(_highlight_pct, subset=['% Investimento'])
+                )
+                
+                st.dataframe(styled_resumo, use_container_width=True, hide_index=True)
+                
+                # Totais gerais
+                total_inv_geral = sum(s['investimento_total'] for s in estatisticas.values())
+                total_ped_geral = sum(s['pedido_total'] for s in estatisticas.values())
+                total_desc_geral = sum(s['desconto_total'] for s in estatisticas.values())
+                pct_geral = (total_inv_geral / total_ped_geral * 100) if total_ped_geral > 0 else 0
+                
+                col_t1, col_t2, col_t3, col_t4 = st.columns(4)
+                with col_t1:
+                    st.metric("💰 Investimento Total Geral", f"R$ {total_inv_geral:,.2f}")
+                with col_t2:
+                    st.metric("📦 Valor Pedido Total Geral", f"R$ {total_ped_geral:,.2f}")
+                with col_t3:
+                    st.metric("📊 % Investimento Geral", f"{pct_geral:.2f}%")
+                with col_t4:
+                    st.metric("🏷️ Descontos Totais Geral", f"R$ {total_desc_geral:,.2f}")
     
     # Seção de download e visualização
     if st.session_state.df_resultado is not None:
@@ -826,7 +907,10 @@ def main():
                 "• Preço venda loja 1, 2, etc.\n" +
                 "• Qtd venda loja 1, 2, etc. (com o CNPJ de cada loja acima das colunas)\n" +
                 "• Verba Total (investimento total)\n" +
-                "• TT.Pedido (valor total de pedidos)")
+                "• TT.Pedido (valor total de pedidos)\n" +
+                "• % Investimento\n\n" +
+                "📊 O resumo acima mostra investimento total, % e descontos por loja.\n" +
+                "🔴 Percentuais acima de 40% em vermelho | 🟡 Acima de 30% em amarelo")
     
     # Rodapé
     st.divider()
