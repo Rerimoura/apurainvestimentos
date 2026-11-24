@@ -854,7 +854,7 @@ def main():
                         '% Investimento': '{:.2f}%',
                         'Descontos Totais': 'R$ {:,.2f}',
                     })
-                    .applymap(_highlight_pct, subset=['% Investimento'])
+                    .map(_highlight_pct, subset=['% Investimento'])
                 )
                 
                 st.dataframe(styled_resumo, use_container_width=True, hide_index=True)
