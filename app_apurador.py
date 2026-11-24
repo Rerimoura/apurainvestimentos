@@ -330,9 +330,18 @@ def processar_dados(df_preco_final, orcamentos_dict):
             'percentual_investimento': round(pct_inv_loja, 2),
         }
     
+    # Calcular % Investimento por loja (por produto)
+    nomes_orcamentos = list(orcamentos_dict.keys())
+    for idx, nome in enumerate(nomes_orcamentos, 1):
+        pct_col = f'% Investimento loja {idx}'
+        df_resultado[pct_col] = (
+            (df_resultado[f'{nome}_INVESTIMENTO_TOTAL'] / df_resultado[f'{nome}_VALOR_PEDIDO_TOTAL']) * 100
+        ).round(2)
+        df_resultado[pct_col] = df_resultado[pct_col].replace([float('inf'), -float('inf')], 0).fillna(0)
+
     # Remover colunas auxiliares que não vão para o Excel
     colunas_para_remover = (
-        colunas_investimento + colunas_valor_pedido
+        colunas_valor_pedido
         + [f'{nome}_DESCONTO_UNITARIO' for nome in orcamentos_dict.keys()]
         + [f'{nome}_DESCONTO_TOTAL' for nome in orcamentos_dict.keys()]
     )
@@ -342,10 +351,10 @@ def processar_dados(df_preco_final, orcamentos_dict):
     renomeacoes = {}
     
     # Renomear colunas dos orçamentos dinamicamente
-    nomes_orcamentos = list(orcamentos_dict.keys())
     for idx, nome in enumerate(nomes_orcamentos, 1):
         renomeacoes[f'{nome}_VALOR_SKU_PAGO'] = f'Preço venda loja {idx}'
         renomeacoes[f'{nome}_QUANTIDADE'] = f'Qtd venda loja {idx}'
+        renomeacoes[f'{nome}_INVESTIMENTO_TOTAL'] = f'Investimento loja {idx}'
     
     # Renomear colunas totais
     renomeacoes['INVESTIMENTO_TOTAL_GERAL'] = 'Verba Total'
@@ -360,6 +369,19 @@ def processar_dados(df_preco_final, orcamentos_dict):
     
     # Substituir inf e NaN por 0 (quando TT.Pedido = 0)
     df_resultado['% Investimento'] = df_resultado['% Investimento'].replace([float('inf'), -float('inf')], 0).fillna(0)
+
+    # Reordenar colunas para manter Preço, Qtd, Investimento e % Investimento juntos por loja
+    colunas_lojas = []
+    for idx in range(1, len(nomes_orcamentos) + 1):
+        colunas_lojas.extend([
+            f'Preço venda loja {idx}',
+            f'Qtd venda loja {idx}',
+            f'Investimento loja {idx}',
+            f'% Investimento loja {idx}',
+        ])
+    colunas_totais = ['Verba Total', 'TT.Pedido', '% Investimento']
+    colunas_base = [c for c in df_resultado.columns if c not in colunas_lojas and c not in colunas_totais]
+    df_resultado = df_resultado[colunas_base + colunas_lojas + colunas_totais]
     
     return df_resultado, estatisticas
 
@@ -368,7 +390,7 @@ def converter_df_para_excel(df, nome_rede="", cnpjs=None, estatisticas=None):
     """Converte DataFrame para Excel em memória com formatação e resumo.
 
     cnpjs: lista com o CNPJ de cada orçamento, na mesma ordem das lojas (loja 1, loja 2, ...)
-    estatisticas: dict com estatísticas por loja (investimento, percentual, descontos)
+    estatisticas: dict opcional com estatísticas por loja
     """
     from openpyxl.styles import PatternFill
 
@@ -383,34 +405,21 @@ def converter_df_para_excel(df, nome_rede="", cnpjs=None, estatisticas=None):
     data_atual = datetime.now().strftime('%d/%m/%Y')
     titulo = f"RESUMO - {nome_rede} - {data_atual}" if nome_rede else f"RESUMO - {data_atual}"
     
-    # Calcular quantas linhas o resumo por loja ocupa
-    num_lojas = len(estatisticas) if estatisticas else 0
-    # Layout:
+    # Layout original preservado:
     # Linha 1: Título
     # Linha 2: Cabeçalhos do resumo geral
     # Linha 3: Valores do resumo geral
-    # Linha 4: Vazia (separador)
-    # Linha 5: Subtítulo "INVESTIMENTO POR LOJA"
-    # Linha 6: Cabeçalhos por loja (Loja | Investimento Total | Valor Pedido | % Investimento | Descontos Totais)
-    # Linhas 7..7+N-1: Dados por loja
-    # Linha 7+N: Vazia (separador)
-    # Linha 7+N+1: CNPJ labels
-    # Linha 7+N+2: Cabeçalhos dos dados
-    # Linha 7+N+3+: Dados
-    if num_lojas > 0:
-        data_start_row = 7 + num_lojas + 1  # linha do cabeçalho dos dados (0-indexed para pandas startrow)
-        cnpj_row = 7 + num_lojas + 1        # linha Excel dos CNPJs
-        header_row = 7 + num_lojas + 2       # linha Excel do cabeçalho dos dados
-        first_data_row = header_row + 1       # primeira linha de dados
-    else:
-        data_start_row = 4
-        cnpj_row = 4
-        header_row = 5
-        first_data_row = 6
+    # Linha 4: CNPJ de cada loja acima das colunas da loja
+    # Linha 5: Cabeçalhos dos dados
+    # Linha 6+: Dados
+    data_start_row = 4
+    cnpj_row = 4
+    header_row = 5
+    first_data_row = 6
 
     # Criar writer com engine openpyxl
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
-        # Escrever dados principais
+        # Escrever dados principais a partir da linha 5 (startrow=4)
         df.to_excel(writer, index=False, sheet_name='Apuração', startrow=data_start_row)
         
         # Obter worksheet para aplicar formatação
@@ -424,9 +433,6 @@ def converter_df_para_excel(df, nome_rede="", cnpjs=None, estatisticas=None):
         worksheet['B2'] = 'TT.Pedido'
         worksheet['C2'] = '% Investimento'
         
-        for cell in ['A2', 'B2', 'C2']:
-            worksheet[cell].font = openpyxl.styles.Font(bold=True)
-        
         worksheet['A3'] = total_verba
         worksheet['B3'] = total_pedido
         worksheet['C3'] = percentual_investimento
@@ -435,10 +441,12 @@ def converter_df_para_excel(df, nome_rede="", cnpjs=None, estatisticas=None):
         worksheet['B3'].number_format = 'R$ #,##0.00'
         worksheet['C3'].number_format = '0.00"%"'
         
-        # Cores do resumo geral
+        # Cores do resumo geral e alertas
         cor_resumo_preto = PatternFill(start_color='000000', end_color='000000', fill_type='solid')
         cor_resumo_amarelo = PatternFill(start_color='FFFF00', end_color='FFFF00', fill_type='solid')
         cor_resumo_verde = PatternFill(start_color='92D050', end_color='92D050', fill_type='solid')
+        cor_vermelho = PatternFill(start_color='FF4D4D', end_color='FF4D4D', fill_type='solid')
+        cor_amarelo_alerta = PatternFill(start_color='FFD633', end_color='FFD633', fill_type='solid')
         
         for col in range(1, 4):
             cell = worksheet.cell(row=2, column=col)
@@ -449,59 +457,15 @@ def converter_df_para_excel(df, nome_rede="", cnpjs=None, estatisticas=None):
         worksheet['B3'].fill = cor_resumo_verde
         worksheet['C3'].fill = cor_resumo_amarelo
         
-        # ── Resumo por Loja ──
-        if num_lojas > 0:
-            cor_vermelho = PatternFill(start_color='FF4D4D', end_color='FF4D4D', fill_type='solid')
-            cor_amarelo_alerta = PatternFill(start_color='FFD633', end_color='FFD633', fill_type='solid')
-            
-            # Subtítulo
-            worksheet.cell(row=5, column=1, value='INVESTIMENTO POR LOJA')
-            worksheet.cell(row=5, column=1).font = openpyxl.styles.Font(size=11, bold=True)
-            
-            # Cabeçalhos por loja (linha 6)
-            headers_loja = ['Loja', 'Investimento Total', 'Valor Pedido', '% Investimento', 'Descontos Totais']
-            for col_idx, header in enumerate(headers_loja, 1):
-                cell = worksheet.cell(row=6, column=col_idx, value=header)
-                cell.fill = cor_resumo_preto
-                cell.font = openpyxl.styles.Font(bold=True, color='FFFFFF')
-            
-            # Dados por loja
-            for loja_idx, (nome, stats) in enumerate(estatisticas.items(), 1):
-                row_loja = 6 + loja_idx
-                pct = stats.get('percentual_investimento', 0)
-                
-                worksheet.cell(row=row_loja, column=1, value=f'Loja {loja_idx}')
-                
-                cell_inv = worksheet.cell(row=row_loja, column=2, value=stats.get('investimento_total', 0))
-                cell_inv.number_format = 'R$ #,##0.00'
-                
-                cell_ped = worksheet.cell(row=row_loja, column=3, value=stats.get('pedido_total', 0))
-                cell_ped.number_format = 'R$ #,##0.00'
-                
-                cell_pct = worksheet.cell(row=row_loja, column=4, value=pct)
-                cell_pct.number_format = '0.00"%"'
-                
-                cell_desc = worksheet.cell(row=row_loja, column=5, value=stats.get('desconto_total', 0))
-                cell_desc.number_format = 'R$ #,##0.00'
-                
-                # Aplicar cores no percentual: >40% vermelho, >30% amarelo
-                if pct > 40:
-                    cell_pct.fill = cor_vermelho
-                    cell_pct.font = openpyxl.styles.Font(bold=True, color='FFFFFF')
-                elif pct > 30:
-                    cell_pct.fill = cor_amarelo_alerta
-                    cell_pct.font = openpyxl.styles.Font(bold=True)
-            
-            # Aplicar cor no % Investimento geral (linha 3) também
-            if percentual_investimento > 40:
-                worksheet['C3'].fill = cor_vermelho
-                worksheet['C3'].font = openpyxl.styles.Font(bold=True, color='FFFFFF')
-            elif percentual_investimento > 30:
-                worksheet['C3'].fill = cor_amarelo_alerta
-                worksheet['C3'].font = openpyxl.styles.Font(bold=True)
+        # Destaque condicional no % Investimento geral (linha 3)
+        if percentual_investimento > 40:
+            worksheet['C3'].fill = cor_vermelho
+            worksheet['C3'].font = openpyxl.styles.Font(bold=True, color='FFFFFF')
+        elif percentual_investimento > 30:
+            worksheet['C3'].fill = cor_amarelo_alerta
+            worksheet['C3'].font = openpyxl.styles.Font(bold=True)
         
         # ── Formatação dos dados principais ──
-        # Definir cores
         cor_cabecalho = PatternFill(start_color='1F3864', end_color='1F3864', fill_type='solid')
         cor_dados_azul = PatternFill(start_color='D9E2F3', end_color='D9E2F3', fill_type='solid')
         cor_dados_verde = PatternFill(start_color='C6E0B4', end_color='C6E0B4', fill_type='solid')
@@ -520,33 +484,35 @@ def converter_df_para_excel(df, nome_rede="", cnpjs=None, estatisticas=None):
             adjusted_width = min(max_length + 2, 50)
             worksheet.column_dimensions[column_letter].width = adjusted_width
         
-        # Identificar colunas que precisam de formatação
-        colunas_moeda = ['Valor Negociado REDE', 'Verba Total', 'TT.Pedido']
-        colunas_moeda_dinamicas = [col for col in df.columns if 'Preço venda loja' in col]
-        todas_colunas_moeda = colunas_moeda + colunas_moeda_dinamicas
-        
-        coluna_percentual = '% Investimento'
-        
+        # Identificar colunas de moeda e percentual
+        colunas_moeda_fixas = {'Valor Negociado REDE', 'Verba Total', 'TT.Pedido'}
         indices_moeda = []
-        indice_percentual = None
+        indices_percentual = []
+        colunas_orcamento_idx = []
+        colunas_totais_idx = []
         
-        for idx, col in enumerate(df.columns, 1):
-            if col in todas_colunas_moeda:
+        for idx, col_name in enumerate(df.columns, 1):
+            col_str = str(col_name)
+            col_lower = col_str.lower()
+            if (
+                col_str in colunas_moeda_fixas
+                or 'preço venda loja' in col_lower
+                or 'investimento loja' in col_lower
+            ):
                 indices_moeda.append(idx)
-            elif col == coluna_percentual:
-                indice_percentual = idx
+            if col_str.startswith('% Investimento'):
+                indices_percentual.append(idx)
+            if (
+                'preço venda loja' in col_lower
+                or 'qtd venda loja' in col_lower
+                or 'investimento loja' in col_lower
+                or '% investimento loja' in col_lower
+            ):
+                colunas_orcamento_idx.append(idx)
+            elif col_str in ('Verba Total', 'TT.Pedido', '% Investimento'):
+                colunas_totais_idx.append(idx)
         
         last_data_row = first_data_row + len(df)
-        
-        # Aplicar formatação de moeda e percentual nos dados
-        for row in range(first_data_row, last_data_row):
-            for col_idx in indices_moeda:
-                cell = worksheet.cell(row=row, column=col_idx)
-                cell.number_format = 'R$ #,##0.00'
-            
-            if indice_percentual:
-                cell = worksheet.cell(row=row, column=indice_percentual)
-                cell.number_format = '0.00"%"'
         
         # Cabeçalho dos dados - azul escuro com texto branco
         num_colunas = len(df.columns)
@@ -555,17 +521,7 @@ def converter_df_para_excel(df, nome_rede="", cnpjs=None, estatisticas=None):
             cell.fill = cor_cabecalho
             cell.font = openpyxl.styles.Font(bold=True, color='FFFFFF')
         
-        # Cor azul claro nas colunas base dos dados
-        # Identificar colunas que NÃO são de orçamento nem totalizadoras
-        colunas_orcamento_idx = []
-        colunas_totais_idx = []
-        for idx, col_name in enumerate(df.columns, 1):
-            col_lower = str(col_name).lower()
-            if 'preço venda loja' in col_lower or 'qtd venda loja' in col_lower:
-                colunas_orcamento_idx.append(idx)
-            elif col_name in ('Verba Total', 'TT.Pedido', '% Investimento'):
-                colunas_totais_idx.append(idx)
-        
+        # Aplicar formatação de moeda, percentual e cores nos dados
         for row in range(first_data_row, last_data_row):
             for col in range(1, num_colunas + 1):
                 cell = worksheet.cell(row=row, column=col)
@@ -575,13 +531,33 @@ def converter_df_para_excel(df, nome_rede="", cnpjs=None, estatisticas=None):
                     cell.fill = cor_dados_verde
                 else:
                     cell.fill = cor_dados_azul
+                
+                if col in indices_moeda:
+                    cell.number_format = 'R$ #,##0.00'
+                
+                if col in indices_percentual:
+                    cell.number_format = '0.00"%"'
+                    try:
+                        val_pct = float(cell.value) if cell.value is not None else 0
+                    except (ValueError, TypeError):
+                        val_pct = 0
+                    if val_pct > 40:
+                        cell.fill = cor_vermelho
+                        cell.font = openpyxl.styles.Font(bold=True, color='FFFFFF')
+                    elif val_pct > 30:
+                        cell.fill = cor_amarelo_alerta
+                        cell.font = openpyxl.styles.Font(bold=True)
 
-        # Escrever o CNPJ de cada loja acima das colunas Preço/Qtd venda da loja
+        # Escrever o CNPJ de cada loja acima das colunas da loja
         colunas_df = list(df.columns)
         for idx, cnpj in enumerate(cnpjs or [], 1):
-            col_preco = f'Preço venda loja {idx}'
-            col_qtd = f'Qtd venda loja {idx}'
-            indices = [colunas_df.index(c) + 1 for c in (col_preco, col_qtd) if c in colunas_df]
+            col_loja = [
+                f'Preço venda loja {idx}',
+                f'Qtd venda loja {idx}',
+                f'Investimento loja {idx}',
+                f'% Investimento loja {idx}',
+            ]
+            indices = [colunas_df.index(c) + 1 for c in col_loja if c in colunas_df]
             if not indices:
                 continue
 
@@ -959,7 +935,8 @@ def main():
         
         st.info("💡 O arquivo Excel contém todos os dados do Preço Final mais as colunas:\n" +
                 "• Preço venda loja 1, 2, etc.\n" +
-                "• Qtd venda loja 1, 2, etc. (com o CNPJ de cada loja acima das colunas)\n" +
+                "• Qtd venda loja 1, 2, etc.\n" +
+                "• Investimento loja 1, 2, etc. e % Investimento loja 1, 2, etc. (com o CNPJ de cada loja acima das colunas)\n" +
                 "• Verba Total (investimento total)\n" +
                 "• TT.Pedido (valor total de pedidos)\n" +
                 "• % Investimento\n\n" +
